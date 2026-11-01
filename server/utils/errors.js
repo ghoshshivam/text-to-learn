@@ -1,9 +1,21 @@
-class AIGenerationError extends Error {
-  constructor(message, { cause, statusCode = 502 } = {}) {
+class AppError extends Error {
+  constructor(message, { statusCode = 500, code = "INTERNAL_ERROR", cause } = {}) {
     super(message, { cause });
-    this.name = "AIGenerationError";
+    this.name = "AppError";
     this.statusCode = statusCode;
+    this.code = code;
   }
 }
 
-module.exports = { AIGenerationError };
+class AIGenerationError extends AppError {
+  constructor(message, { cause, statusCode = 502 } = {}) {
+    super(message, {
+      statusCode,
+      code: statusCode === 400 ? "INVALID_TOPIC" : "AI_GENERATION_FAILED",
+      cause,
+    });
+    this.name = "AIGenerationError";
+  }
+}
+
+module.exports = { AppError, AIGenerationError };
