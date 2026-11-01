@@ -1,14 +1,31 @@
+import { Route, Routes } from "react-router-dom";
+import AuthTokenBridge from "./components/AuthTokenBridge";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AppLayout from "./components/AppLayout";
+import AuthPage from "./pages/AuthPage";
+import HomePage from "./pages/HomePage";
+import CoursePage from "./pages/CoursePage";
+import LessonPage from "./pages/LessonPage";
+import NotFoundPage from "./pages/NotFoundPage";
+
 export default function App() {
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700 text-center">
-        <h1 className="text-3xl font-bold text-sky-400 mb-2">
-          Tailwind CSS is Working!
-        </h1>
-        <p className="text-slate-300 text-sm">
-          Vite + React + Tailwind setup completed successfully.
-        </p>
-      </div>
-    </div>
+    <AuthTokenBridge>
+      <Routes>
+        <Route path="/login" element={<AuthPage mode="login" />} />
+        <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="courses/:courseId" element={<CoursePage />} />
+            <Route
+              path="courses/:courseId/module/:moduleIndex/lesson/:lessonIndex"
+              element={<LessonPage />}
+            />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Route>
+      </Routes>
+    </AuthTokenBridge>
   );
 }
