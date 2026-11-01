@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { courseApi, lessonApi } from "../utils/api";
+import { courseApi, lessonApi, videoApi } from "../utils/api";
 
 export const useCourses = () =>
   useQuery({
@@ -38,6 +38,16 @@ export const useLesson = (lessonId) =>
     queryKey: ["lesson", lessonId],
     queryFn: () => lessonApi.generate(lessonId),
     enabled: Boolean(lessonId),
+    staleTime: Infinity,
+    retry: 0,
+  });
+
+// A video never changes for a given query, so cache it for the session
+export const useVideo = (query) =>
+  useQuery({
+    queryKey: ["video", query],
+    queryFn: () => videoApi.find(query),
+    enabled: Boolean(query),
     staleTime: Infinity,
     retry: 0,
   });
