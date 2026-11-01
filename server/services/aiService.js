@@ -10,13 +10,18 @@ const {
 } = require("./prompts");
 
 const MAX_VALIDATION_ATTEMPTS = 3; // bad JSON / failed Zod rules
-const MAX_TRANSIENT_RETRIES = 5; // 429 / 5xx from Google
+const CALL_TIMEOUT_MS = 40_000; // max time for one Gemini call
+const TOTAL_BUDGET_MS = 90_000; // max time for the whole generation
+const THINKING_LEVEL = (process.env.GEMINI_THINKING_LEVEL || "low").toUpperCase();
 const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504]);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const statusOf = (err) => err?.status ?? err?.code;
 const isValidationError = (err) => Boolean(err?.issues) || err instanceof SyntaxError;
+const isTimeout = (err) =>
+  err?.name === "TimeoutError" || err?.name === "AbortError" || /abort|timed? ?out/i.test(err?.message || "");
+const isBusy = (err) => TRANSIENT_STATUS.has(statusOf(err)) || isTimeout(err);
 
 const describeProblem = (err) =>
   err.issues
@@ -26,27 +31,33 @@ const describeProblem = (err) =>
         .join("; ")
     : err.message;
 
+// Gemini 3.x models take thinkingLevel; older models would reject it
+const buildConfig = (model, responseSchema, signal) => ({
+  systemInstruction: SYSTEM_INSTRUCTION,
+  responseMimeType: "application/json",
+  responseSchema,
+  abortSignal: signal,
+  ...(model.startsWith("gemini-3") && { thinkingConfig: { thinkingLevel: THINKING_LEVEL } }),
+});
+
 async function generateStructured({ prompt, responseSchema, validator, label }) {
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
   let currentPrompt = prompt;
   let model = MODEL;
+  let fallbackUsable = Boolean(FALLBACK_MODEL);
   let validationFailures = 0;
   let transientFailures = 0;
   let lastError;
 
-  while (
-    validationFailures < MAX_VALIDATION_ATTEMPTS &&
-    transientFailures <= MAX_TRANSIENT_RETRIES
-  ) {
+  while (validationFailures < MAX_VALIDATION_ATTEMPTS) {
+    const remaining = deadline - Date.now();
+    if (remaining < 5_000) break; // out of time budget
+
     try {
       const response = await ai.models.generateContent({
         model,
         contents: currentPrompt,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          responseMimeType: "application/json",
-          responseSchema,
-          temperature: 0.7,
-        },
+        config: buildConfig(model, responseSchema, AbortSignal.timeout(Math.min(CALL_TIMEOUT_MS, remaining))),
       });
 
       const raw = response.text;
@@ -63,25 +74,35 @@ async function generateStructured({ prompt, responseSchema, validator, label }) 
         currentPrompt =
           `${prompt}\n\nYour previous answer was rejected: ${problem}. ` +
           `Every block must include all the fields required for its type. Answer again.`;
-      } else if (TRANSIENT_STATUS.has(statusOf(err))) {
+      } else if (isBusy(err)) {
         transientFailures++;
-        console.warn(`[ai] ${label}: Google busy (${statusOf(err)}), retry ${transientFailures}/${MAX_TRANSIENT_RETRIES}`);
+        console.warn(`[ai] ${label}: busy or slow (${statusOf(err) ?? err.name}) on ${model}, retry ${transientFailures}`);
 
-        if (FALLBACK_MODEL && model !== FALLBACK_MODEL && transientFailures >= 2) {
+        if (fallbackUsable && model !== FALLBACK_MODEL) {
           model = FALLBACK_MODEL;
           console.warn(`[ai] switching to fallback model: ${FALLBACK_MODEL}`);
         }
-        const delay = Math.min(1000 * 2 ** (transientFailures - 1), 15000) + Math.random() * 500;
+        const delay = Math.min(1000 * 2 ** (transientFailures - 1), 8000) + Math.random() * 500;
+        if (deadline - Date.now() - delay < 5_000) break;
         await sleep(delay);
+      } else if (model === FALLBACK_MODEL && [400, 404].includes(statusOf(err))) {
+        // the fallback name is wrong or unsupported: stop using it
+        fallbackUsable = false;
+        model = MODEL;
+        console.warn(`[ai] fallback model "${FALLBACK_MODEL}" failed (${statusOf(err)}); using ${MODEL} only`);
       } else {
         break; // bad key, bad request, etc. Retrying cannot help.
       }
     }
   }
 
-  throw new AIGenerationError(`Could not generate ${label}. Please try again.`, {
-    cause: lastError,
-  });
+  const busy = (lastError && isBusy(lastError)) || Date.now() >= deadline - 5_000;
+  throw new AIGenerationError(
+    busy
+      ? "The AI service is busy right now. Please try again in a minute."
+      : `Could not generate ${label}. Please try again.`,
+    { cause: lastError, statusCode: busy ? 503 : 502 }
+  );
 }
 
 async function generateCourse(topic) {
