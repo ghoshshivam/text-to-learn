@@ -6,9 +6,10 @@ import { useCourse, useLesson } from "../hooks/useCourses";
 import { getErrorMessage } from "../utils/api";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
-import NotFoundPage from "./NotFoundPage";
 import LessonRenderer from "../components/LessonRenderer";
 import LessonPdfExporter from "../components/pdf/LessonPdfExporter";
+import HinglishAudioPlayer from "../components/HinglishAudioPlayer";
+import NotFoundPage from "./NotFoundPage";
 
 export default function LessonPage() {
   const { courseId, moduleIndex, lessonIndex } = useParams();
@@ -20,6 +21,7 @@ export default function LessonPage() {
   const lessonRef = course?.modules?.[mi]?.lessons?.[li];
   const { data: lesson, isLoading, error, refetch } = useLesson(lessonRef?._id);
 
+  // Refresh the syllabus so the "Ready" tick appears
   useEffect(() => {
     if (lesson) qc.invalidateQueries({ queryKey: ["course", courseId] });
   }, [lesson, courseId, qc]);
@@ -28,6 +30,7 @@ export default function LessonPage() {
   if (courseError) return <ErrorMessage message={getErrorMessage(courseError)} />;
   if (!lessonRef) return <NotFoundPage message="This lesson does not exist." />;
 
+  // Flat list of lessons for previous / next buttons
   const flat = course.modules.flatMap((m, a) => m.lessons.map((l, b) => ({ a, b, title: l.title })));
   const pos = flat.findIndex((x) => x.a === mi && x.b === li);
   const prev = flat[pos - 1];
@@ -44,24 +47,18 @@ export default function LessonPage() {
         <span>Module {mi + 1}</span>
       </nav>
 
-      {/* Header row with title and Download PDF button */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <h1 className="text-3xl font-bold">{lessonRef.title}</h1>
         {lesson && (
           <div className="flex flex-col items-end gap-1">
-            <LessonPdfExporter
-              courseTitle={course.title}
-              moduleTitle={course.modules[mi].title}
-              lesson={lesson}
-            />
+            <LessonPdfExporter courseTitle={course.title} moduleTitle={course.modules[mi].title} lesson={lesson} />
           </div>
         )}
       </div>
 
-      {isLoading && (
-        <LoadingSpinner label="Writing this lesson for you... first time only, about 20 seconds." />
-      )}
+      {isLoading && <LoadingSpinner label="Writing this lesson for you... first time only, about 20 seconds." />}
       {error && <ErrorMessage message={getErrorMessage(error)} onRetry={refetch} />}
+
       {lesson && (
         <>
           <section className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
@@ -72,9 +69,13 @@ export default function LessonPage() {
               ))}
             </ul>
           </section>
+
+          <HinglishAudioPlayer key={lesson._id} lessonId={lesson._id} lessonTitle={lesson.title} />
+
           <LessonRenderer content={lesson.content} />
         </>
       )}
+
       <div className="flex justify-between border-t border-slate-200 pt-4">
         {prev ? (
           <Link to={lessonPath(prev)} className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:underline">

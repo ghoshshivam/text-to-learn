@@ -19,6 +19,22 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Converts error responses that arrive as binary Blobs back into JSON
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const data = error.response?.data;
+    if (data instanceof Blob && data.type.includes("application/json")) {
+      try {
+        error.response.data = JSON.parse(await data.text());
+      } catch {
+        /* leave as is */
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const getErrorMessage = (error) =>
   error?.response?.data?.error?.message ||
   (error?.code === "ECONNABORTED"
@@ -46,4 +62,15 @@ export const lessonApi = {
 
 export const videoApi = {
   find: (query) => api.get("/youtube", { params: { query } }).then(unwrap),
+};
+
+export const audioApi = {
+  // Returns a Blob (audio/wav). First generation can take up to a minute.
+  generate: (lessonId) =>
+    api
+      .post(`/lessons/${lessonId}/audio`, null, {
+        responseType: "blob",
+        timeout: 240_000,
+      })
+      .then((res) => res.data),
 };

@@ -75,4 +75,17 @@ const lessonResponseSchema = {
   required: ["title", "objectives", "content"],
 };
 
-module.exports = { courseResponseSchema, lessonResponseSchema };
+/* ---------- Hinglish narration schema ---------- */
+const hinglishResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    segments: { type: Type.ARRAY, items: str },
+  },
+  required: ["segments"],
+};
+
+module.exports = {
+  courseResponseSchema,
+  lessonResponseSchema,
+  hinglishResponseSchema,
+};

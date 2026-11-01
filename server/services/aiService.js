@@ -1,12 +1,22 @@
 const { ai, MODEL, FALLBACK_MODEL } = require("../config/gemini");
 const { cleanJson } = require("../utils/cleanJson");
 const { AIGenerationError } = require("../utils/errors");
-const { courseResponseSchema, lessonResponseSchema } = require("../schemas/geminiSchemas");
-const { courseOutlineSchema, lessonSchema } = require("../schemas/validators");
+const {
+  courseResponseSchema,
+  lessonResponseSchema,
+  hinglishResponseSchema,
+} = require("../schemas/geminiSchemas");
+const {
+  courseOutlineSchema,
+  lessonSchema,
+  hinglishScriptSchema,
+} = require("../schemas/validators");
 const {
   SYSTEM_INSTRUCTION,
+  HINGLISH_SYSTEM_INSTRUCTION,
   generateCoursePrompt,
   generateLessonPrompt,
+  generateHinglishPrompt,
 } = require("./prompts");
 
 const MAX_VALIDATION_ATTEMPTS = 3; // bad JSON / failed Zod rules
@@ -32,15 +42,21 @@ const describeProblem = (err) =>
     : err.message;
 
 // Gemini 3.x models take thinkingLevel; older models would reject it
-const buildConfig = (model, responseSchema, signal) => ({
-  systemInstruction: SYSTEM_INSTRUCTION,
+const buildConfig = (model, responseSchema, signal, systemInstruction) => ({
+  systemInstruction,
   responseMimeType: "application/json",
   responseSchema,
   abortSignal: signal,
   ...(model.startsWith("gemini-3") && { thinkingConfig: { thinkingLevel: THINKING_LEVEL } }),
 });
 
-async function generateStructured({ prompt, responseSchema, validator, label }) {
+async function generateStructured({
+  prompt,
+  responseSchema,
+  validator,
+  label,
+  systemInstruction = SYSTEM_INSTRUCTION,
+}) {
   const deadline = Date.now() + TOTAL_BUDGET_MS;
   let currentPrompt = prompt;
   let model = MODEL;
@@ -57,7 +73,12 @@ async function generateStructured({ prompt, responseSchema, validator, label }) 
       const response = await ai.models.generateContent({
         model,
         contents: currentPrompt,
-        config: buildConfig(model, responseSchema, AbortSignal.timeout(Math.min(CALL_TIMEOUT_MS, remaining))),
+        config: buildConfig(
+          model,
+          responseSchema,
+          AbortSignal.timeout(Math.min(CALL_TIMEOUT_MS, remaining)),
+          systemInstruction
+        ),
       });
 
       const raw = response.text;
@@ -128,4 +149,19 @@ async function generateLesson({ course, module, lesson }) {
   });
 }
 
-module.exports = { generateCourse, generateLesson };
+async function generateHinglishScript(sourceText) {
+  const { segments } = await generateStructured({
+    prompt: generateHinglishPrompt(sourceText),
+    systemInstruction: HINGLISH_SYSTEM_INSTRUCTION,
+    responseSchema: hinglishResponseSchema,
+    validator: hinglishScriptSchema,
+    label: "Hinglish narration",
+  });
+  return segments;
+}
+
+module.exports = {
+  generateCourse,
+  generateLesson,
+  generateHinglishScript,
+};

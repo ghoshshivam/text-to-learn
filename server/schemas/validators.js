@@ -70,4 +70,13 @@ const lessonSchema = z
     });
   });
 
-module.exports = { courseOutlineSchema, lessonSchema };
+/* Hinglish narration script validator */
+const hinglishScriptSchema = z.object({
+  segments: z.array(text.max(900)).min(1).max(40),
+});
+
+module.exports = {
+  courseOutlineSchema,
+  lessonSchema,
+  hinglishScriptSchema,
+};
