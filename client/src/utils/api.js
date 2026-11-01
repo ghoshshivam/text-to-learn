@@ -43,3 +43,7 @@ export const lessonApi = {
   generate: (lessonId) =>
     api.post("/generate-lesson", { lessonId }).then(unwrap),
 };
+
+export const videoApi = {
+  find: (query) => api.get("/youtube", { params: { query } }).then(unwrap),
+};

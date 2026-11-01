@@ -7,6 +7,7 @@ import { getErrorMessage } from "../utils/api";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import NotFoundPage from "./NotFoundPage";
+import LessonRenderer from "../components/LessonRenderer";
 
 export default function LessonPage() {
   const { courseId, moduleIndex, lessonIndex } = useParams();
@@ -56,9 +57,7 @@ export default function LessonPage() {
               ))}
             </ul>
           </section>
-          <pre className="max-h-[32rem] overflow-auto rounded-2xl bg-slate-900 p-4 text-xs text-slate-100">
-            {JSON.stringify(lesson.content, null, 2)}
-          </pre>
+          <LessonRenderer content={lesson.content} />
         </>
       )}
       <div className="flex justify-between border-t border-slate-200 pt-4">

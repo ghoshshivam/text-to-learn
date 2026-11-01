@@ -9,4 +9,13 @@ const generateCourseBody = z.object({
 const generateLessonBody = z.object({ lessonId: objectId });
 const idParam = z.object({ id: objectId });
 
-module.exports = { generateCourseBody, generateLessonBody, idParam };
+const youtubeQuery = z.object({
+  query: z.string().trim().min(2, "Query is too short").max(150, "Query is too long"),
+});
+
+module.exports = {
+  generateCourseBody,
+  generateLessonBody,
+  idParam,
+  youtubeQuery,
+};

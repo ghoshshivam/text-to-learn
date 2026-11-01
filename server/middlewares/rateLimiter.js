@@ -25,4 +25,14 @@ const aiLimiter = rateLimit({
   message: rateLimitMessage("AI generation limit reached. Try again later."),
 });
 
-module.exports = { apiLimiter, aiLimiter };
+// Video lookups per logged-in user (cache misses cost YouTube quota)
+const youtubeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 120,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user.sub,
+  message: rateLimitMessage("Too many video requests. Try again later."),
+});
+
+module.exports = { apiLimiter, aiLimiter, youtubeLimiter };

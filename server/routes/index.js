@@ -6,5 +6,6 @@ router.get("/health", (req, res) =>
 
 router.use(require("./courseRoutes"));
 router.use(require("./lessonRoutes"));
+router.use(require("./youtubeRoutes"));
 
 module.exports = router;
