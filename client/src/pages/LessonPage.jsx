@@ -8,6 +8,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import NotFoundPage from "./NotFoundPage";
 import LessonRenderer from "../components/LessonRenderer";
+import LessonPdfExporter from "../components/pdf/LessonPdfExporter";
 
 export default function LessonPage() {
   const { courseId, moduleIndex, lessonIndex } = useParams();
@@ -42,7 +43,21 @@ export default function LessonPage() {
         <span className="mx-2">/</span>
         <span>Module {mi + 1}</span>
       </nav>
-      <h1 className="text-3xl font-bold">{lessonRef.title}</h1>
+
+      {/* Header row with title and Download PDF button */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <h1 className="text-3xl font-bold">{lessonRef.title}</h1>
+        {lesson && (
+          <div className="flex flex-col items-end gap-1">
+            <LessonPdfExporter
+              courseTitle={course.title}
+              moduleTitle={course.modules[mi].title}
+              lesson={lesson}
+            />
+          </div>
+        )}
+      </div>
+
       {isLoading && (
         <LoadingSpinner label="Writing this lesson for you... first time only, about 20 seconds." />
       )}
