@@ -74,3 +74,8 @@ export const audioApi = {
       })
       .then((res) => res.data),
 };
+
+// Fire-and-forget request that wakes a sleeping free-tier backend
+export const wakeServer = () => {
+  fetch(`${import.meta.env.VITE_API_URL}/api/health`).catch(() => {});
+};

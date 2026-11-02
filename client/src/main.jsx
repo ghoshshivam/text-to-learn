@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import App from "./App.jsx";
 import Auth0ProviderWithNavigate from "./context/Auth0ProviderWithNavigate.jsx";
+import { wakeServer } from "./utils/api";
+
+wakeServer();
 
 const queryClient = new QueryClient({
   defaultOptions: {
