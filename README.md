@@ -29,7 +29,7 @@ Text-to-Learn turns a free-form prompt such as "Intro to React Hooks" or "Basics
 
 | Lesson with video and code | Quiz and score |
 |---|---|
-| ![Lesson](docs/screenshots/lesson.png) | ![Quiz](docs/screenshots/quiz.png) |
+| ![Lesson](docs/screenshots/lessons.png) | ![Quiz](docs/screenshots/quiz.png) |
 
 | Hinglish audio player | PDF export |
 |---|---|
